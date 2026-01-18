@@ -60,9 +60,9 @@
 <body>
     <div class="container">
         <header style="text-align:center; padding: 1.5rem 0;">
-            <h1 style="color:#fff; font-size:2.5rem;">Toffel Trading Dashboard</h1>
+            <h1 style="color:#fff; font-size:2.5rem;">Toffel Trading Tool <span style="font-size: 1rem; color: var(--accent-blue); vertical-align: middle;">v2.0</span></h1>
             <div style="margin-top: 0.5rem; color: var(--accent-orange); font-weight: 600; font-size: 0.9rem;">
-                🕒 Laatste update: 17:47:17
+                🕒 Laatste update: 17:49:28 | <a href="javascript:location.reload(true)" style="color: var(--accent-blue); text-decoration: none;">🔄 Ververs nu</a>
             </div>
         </header>
 
@@ -1380,85 +1380,62 @@
                 return 'transparent';
             }) : [];
 
-            new Chart(ctx, {
-                data: {
-                    labels: data.labels,
-                    datasets: [
-                        {
-                            type: 'line',
-                            label: 'Prijs',
-                            data: data.prices,
-                            borderColor: '#58a6ff',
-                            borderWidth: 2,
-                            fill: false,
-                            pointRadius: function(context) {
-                                if (!data.rsi_hist) return 0;
-                                const val = data.rsi_hist[context.dataIndex];
-                                return (val < 35 || val > 65) ? 3 : 0;
+            try {
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [
+                            {
+                                label: 'Prijs',
+                                data: data.prices,
+                                borderColor: '#58a6ff',
+                                borderWidth: 2,
+                                fill: false,
+                                pointRadius: data.rsi_hist ? data.prices.map((_, i) => (data.rsi_hist[i] < 35 || data.rsi_hist[i] > 65 ? 3 : 0)) : 0,
+                                pointBackgroundColor: pointColors,
+                                tension: 0.3
                             },
-                            pointBackgroundColor: pointColors,
-                            tension: 0.3,
-                            zIndex: 10
-                        },
-                        {
-                            type: 'line',
-                            label: 'MA50',
-                            data: data.ma50,
-                            borderColor: 'rgba(210, 153, 34, 0.4)',
-                            borderWidth: 1.5,
-                            borderDash: [5, 5],
-                            fill: false,
-                            pointRadius: 0,
-                            tension: 0.3
-                        },
-                        {
-                            type: 'line',
-                            label: 'Stop Loss',
-                            data: Array(data.prices.length).fill(data.stop_loss),
-                            borderColor: 'rgba(248, 81, 73, 0.4)',
-                            borderWidth: 1,
-                            borderDash: [2, 2],
-                            fill: false,
-                            pointRadius: 0
-                        },
-                        {
-                            type: 'line',
-                            label: 'S1 Support',
-                            data: Array(data.prices.length).fill(data.s1),
-                            borderColor: 'rgba(63, 185, 80, 0.3)',
-                            borderWidth: 1,
-                            fill: false,
-                            pointRadius: 0
-                        },
-                        {
-                            type: 'bar',
-                            label: 'Volume',
-                            data: data.volumes,
-                            backgroundColor: 'rgba(139, 148, 158, 0.2)',
-                            yAxisID: 'yVolume',
-                            borderRadius: 2
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    interaction: { intersect: false, mode: 'index' },
-                    scales: { 
-                        x: { display: false },
-                        y: { 
-                            ticks: { color: '#8b949e', font: { size: 10 } },
-                            grid: { color: '#30363d' }
-                        },
-                        yVolume: {
-                            display: false,
-                            position: 'right',
-                            suggestedMax: Math.max(...data.volumes) * 4
+                            {
+                                label: 'MA50',
+                                data: data.ma50,
+                                borderColor: 'rgba(210, 153, 34, 0.4)',
+                                borderWidth: 1.5,
+                                borderDash: [5, 5],
+                                fill: false,
+                                pointRadius: 0,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Support S1',
+                                data: Array(data.prices.length).fill(data.s1),
+                                borderColor: 'rgba(63, 185, 80, 0.3)',
+                                borderWidth: 1,
+                                fill: false,
+                                pointRadius: 0
+                            },
+                            {
+                                type: 'bar',
+                                label: 'Volume',
+                                data: data.volumes,
+                                backgroundColor: 'rgba(139, 148, 158, 0.2)',
+                                yAxisID: 'yVol',
+                                borderRadius: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { 
+                            x: { display: false },
+                            y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#30363d' } },
+                            yVol: { display: false, position: 'right', suggestedMax: Math.max(...data.volumes) * 5 }
                         }
                     }
-                }
-            });
+                });
+            } catch(e) { console.error("Chart error for " + ticker, e); }
         });
     }
     window.onload = initCharts;
