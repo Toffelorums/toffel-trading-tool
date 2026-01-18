@@ -62,7 +62,7 @@
         <header style="text-align:center; padding: 1.5rem 0;">
             <h1 style="color:#fff; font-size:2.5rem;">Toffel Trading Dashboard</h1>
             <div style="margin-top: 0.5rem; color: var(--accent-orange); font-weight: 600; font-size: 0.9rem;">
-                🕒 Laatste update: 17:45:20
+                🕒 Laatste update: 17:47:17
             </div>
         </header>
 
@@ -1391,7 +1391,11 @@
                             borderColor: '#58a6ff',
                             borderWidth: 2,
                             fill: false,
-                            pointRadius: data.rsi_hist ? (idx => (data.rsi_hist[idx] < 35 || data.rsi_hist[idx] > 65 ? 3 : 0)) : 0,
+                            pointRadius: function(context) {
+                                if (!data.rsi_hist) return 0;
+                                const val = data.rsi_hist[context.dataIndex];
+                                return (val < 35 || val > 65) ? 3 : 0;
+                            },
                             pointBackgroundColor: pointColors,
                             tension: 0.3,
                             zIndex: 10
