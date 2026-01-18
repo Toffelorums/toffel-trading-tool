@@ -60,9 +60,9 @@
 <body>
     <div class="container">
         <header style="text-align:center; padding: 1.5rem 0;">
-            <h1 style="color:#fff; font-size:2.5rem;">Toffel Trading Tool <span style="font-size: 1rem; color: var(--accent-blue); vertical-align: middle;">v3.2</span></h1>
+            <h1 style="color:#fff; font-size:2.5rem;">Toffel Trading Tool <span style="font-size: 1rem; color: var(--accent-blue); vertical-align: middle;">v3.3</span></h1>
             <div style="margin-top: 0.5rem; color: var(--accent-orange); font-weight: 600; font-size: 0.9rem;">
-                🕒 Laatste update: 20:12:39 | <a href="javascript:location.reload(true)" style="color: var(--accent-blue); text-decoration: none;">🔄 Ververs nu</a>
+                🕒 Laatste update: 20:14:54 | <a href="javascript:location.reload(true)" style="color: var(--accent-blue); text-decoration: none;">🔄 Ververs nu</a>
             </div>
         </header>
 
@@ -1501,9 +1501,9 @@
                             y: { 
                                 ticks: { color: '#8b949e', font: { size: 10 } }, 
                                 grid: { color: '#30363d' },
-                                // Auto-schaal fix v3.2: Zorg dat S1 en R1 altijd zichtbaar zijn
-                                suggestedMin: Math.min(...data.prices, data.s1) * 0.98,
-                                suggestedMax: Math.max(...data.prices, data.r1) * 1.02
+                                // Auto-schaal fix v3.3: Geforceerde margins (5%)
+                                min: Math.min(...data.prices, data.s1, data.r1) * 0.95,
+                                max: Math.max(...data.prices, data.s1, data.r1) * 1.05
                             },
                             yVol: { display: false, position: 'right', suggestedMax: Math.max(...data.volumes) * 5 }
                         }
