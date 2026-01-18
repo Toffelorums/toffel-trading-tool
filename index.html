@@ -1,0 +1,1420 @@
+
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="300">
+    <title>Toffel Trading Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --bg-color: #0d1117; --card-bg: #161b22; --accent-blue: #58a6ff; --accent-green: #3fb950; --accent-red: #f85149; --accent-orange: #d29922; --text-main: #c9d1d9; --text-dim: #8b949e; --border-color: #30363d; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 1rem; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* Navigatie Tabs */
+        .tabs { display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
+        .tab-btn { background: none; border: 1px solid var(--border-color); color: var(--text-dim); padding: 0.8rem 2rem; border-radius: 2rem; cursor: pointer; font-weight: 600; transition: 0.3s; }
+        .tab-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+        .tab-btn:hover { border-color: var(--accent-blue); }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; }
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+        .macro-card { border-left: 4px solid var(--accent-blue); }
+        .ticker-row { display:flex; justify-content:space-between; align-items:center; }
+        .ticker { font-size: 1.8rem; font-weight: 700; color: var(--accent-blue); }
+        .badge { padding: 0.4rem 0.8rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+        .BUY { background: rgba(63, 185, 80, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .SELL { background: rgba(248, 81, 73, 0.15); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .HOLD { background: rgba(139, 148, 158, 0.1); color: var(--text-dim); border: 1px solid var(--border-color); }
+        .EXIT { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        
+        .price { font-size: 2.5rem; font-weight: 700; }
+        .levels-box { display: flex; justify-content: space-between; padding: 0.8rem; background: rgba(255,255,255,0.03); border-radius: 0.5rem; border: 1px dashed var(--border-color); font-size: 0.85rem; }
+        .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .metric { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; }
+        .lab { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; }
+        .val { font-size: 1rem; font-weight: 600; display: block; }
+        .sentiment-bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 5px; }
+        .sentiment-fill { height: 100%; transition: 0.5s; }
+        .chart-wrap { height: 180px; width: 100%; position: relative; margin-top: 10px; }
+        .confirmation { font-size: 0.75rem; display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
+        
+        .summary-box { background: rgba(210, 153, 34, 0.05); border: 1px solid var(--accent-orange); border-radius: 1rem; padding: 1.2rem; margin-bottom: 2rem; }
+        .summary-item { display: inline-block; background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 0.5rem; margin-right: 0.8rem; margin-bottom: 0.5rem; font-size: 0.9rem; border: 1px solid var(--border-color); }
+        .summary-ticker { font-weight: 700; color: var(--accent-blue); margin-right: 5px; }
+        
+        .info-box { background: rgba(88, 166, 255, 0.05); border: 1px solid var(--accent-blue); border-radius: 1rem; padding: 1.5rem; margin-bottom: 2rem; line-height: 1.6; }
+        .info-title { color: var(--accent-blue); font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 10px; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; font-size: 0.85rem; }
+        .info-item b { color: #fff; }
+        .fund-item { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; }
+        .fund-rank { position: absolute; top: 0; left: 0; background: var(--accent-blue); color: #fff; padding: 0.2rem 0.8rem; font-weight: 700; font-size: 0.8rem; border-bottom-right-radius: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header style="text-align:center; padding: 1.5rem 0;">
+            <h1 style="color:#fff; font-size:2.5rem;">Toffel Trading Dashboard</h1>
+            <div style="margin-top: 0.5rem; color: var(--accent-orange); font-weight: 600; font-size: 0.9rem;">
+                🕒 Laatste update: 17:27:39
+            </div>
+        </header>
+
+        <div class="summary-box" id="ai-summary">
+            <h2 style="font-size: 0.8rem; color: var(--accent-orange); margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">🚀 AI Market Opportunities (Best Picks)</h2>
+            <div id="market-summary"><div class="summary-item"><span class="summary-ticker">MSFT</span> (95%): Lage RSI (Oversold)</div><div class="summary-item"><span class="summary-ticker">AMZN</span> (95%): Perfecte setup</div><div class="summary-item"><span class="summary-ticker">AVGO</span> (90%): Perfecte setup</div></div>
+        </div>
+
+        <nav class="tabs">
+            <button class="tab-btn active" onclick="openTab('stocks')">Aandelen</button>
+            <button class="tab-btn" onclick="openTab('etfs')">ETF-ETC</button>
+            <button class="tab-btn" onclick="openTab('macro')">Macro</button>
+            <button class="tab-btn" onclick="openTab('analysis_knowledge')">📊 Analyse Kennis</button>
+            <button class="tab-btn" onclick="openTab('guide')">📖 Handleiding</button>
+        </nav>
+
+        <section id="stocks" class="tab-content active">
+            <div class="grid">
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">MSFT</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$459.86</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +0.70% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">95%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:95%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        <div class="levels-box" style="margin-top: 10px; background: rgba(88, 166, 255, 0.03); border-color: rgba(88, 166, 255, 0.2);">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; text-align: center;">
+                <div><span class="lab">K/W (P/E)</span><span class="val" style="font-size:0.8rem;">32.7</span></div>
+                <div><span class="lab">EPS Groei</span><span class="val" style="font-size:0.8rem;">12.5%</span></div>
+                <div><span class="lab">ROE</span><span class="val" style="font-size:0.8rem;">32.2%</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $453.62</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+1.4% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $461.97</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.5% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $484.63</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-5.1% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+        <div class="metric"><span class="lab">Sentiment</span><span class="val">60%</span>
+            <div class="sentiment-bar"><div class="sentiment-fill" style="width:60%; background:var(--accent-orange)"></div></div>
+        </div>
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">26.2</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$444.05</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-MSFT"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">AMZN</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$239.12</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +0.39% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">95%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:95%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        <div class="levels-box" style="margin-top: 10px; background: rgba(88, 166, 255, 0.03); border-color: rgba(88, 166, 255, 0.2);">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; text-align: center;">
+                <div><span class="lab">K/W (P/E)</span><span class="val" style="font-size:0.8rem;">33.8</span></div>
+                <div><span class="lab">EPS Groei</span><span class="val" style="font-size:0.8rem;">38.2%</span></div>
+                <div><span class="lab">ROE</span><span class="val" style="font-size:0.8rem;">24.3%</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $236.32</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+1.2% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $240.34</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.5% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $233.37</span>
+                <span style="font-size: 0.75rem; color: var(--accent-green);">+2.5% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+        <div class="metric"><span class="lab">Sentiment</span><span class="val">65%</span>
+            <div class="sentiment-bar"><div class="sentiment-fill" style="width:65%; background:var(--accent-green)"></div></div>
+        </div>
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">58.0</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$228.48</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-AMZN"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">UBER</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$84.85</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +0.56% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">80%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:80%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        <div class="levels-box" style="margin-top: 10px; background: rgba(88, 166, 255, 0.03); border-color: rgba(88, 166, 255, 0.2);">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; text-align: center;">
+                <div><span class="lab">K/W (P/E)</span><span class="val" style="font-size:0.8rem;">43.7</span></div>
+                <div><span class="lab">EPS Groei</span><span class="val" style="font-size:0.8rem;">153.7%</span></div>
+                <div><span class="lab">ROE</span><span class="val" style="font-size:0.8rem;">73.0%</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $82.62</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+2.7% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $86.24</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+1.6% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $86.17</span>
+                <span style="font-size: 0.75rem; color: var(--accent-green);">-1.5% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+        <div class="metric"><span class="lab">Sentiment</span><span class="val">55%</span>
+            <div class="sentiment-bar"><div class="sentiment-fill" style="width:55%; background:var(--accent-orange)"></div></div>
+        </div>
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">60.9</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$80.14</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bearish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-UBER"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">SOF</span>
+            <span class="badge SELL">SELL</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">€264.20</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +0.08% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-orange);">50%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:50%; background:var(--accent-orange); border-radius: 4px;"></div>
+        </div>
+
+        
+        <div class="levels-box" style="margin-top: 10px; background: rgba(88, 166, 255, 0.03); border-color: rgba(88, 166, 255, 0.2);">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; text-align: center;">
+                <div><span class="lab">K/W (P/E)</span><span class="val" style="font-size:0.8rem;">22.3</span></div>
+                <div><span class="lab">EPS Groei</span><span class="val" style="font-size:0.8rem;">0.0%</span></div>
+                <div><span class="lab">ROE</span><span class="val" style="font-size:0.8rem;">4.3%</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: €262.27</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.7% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: €265.47</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.5% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: €244.96</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+7.9% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+        <div class="metric"><span class="lab">Sentiment</span><span class="val">60%</span>
+            <div class="sentiment-bar"><div class="sentiment-fill" style="width:60%; background:var(--accent-orange)"></div></div>
+        </div>
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">91.3</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">€256.86</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bearish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-SOF-BR"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">AVGO</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$351.71</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +2.53% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">90%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:90%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        <div class="levels-box" style="margin-top: 10px; background: rgba(88, 166, 255, 0.03); border-color: rgba(88, 166, 255, 0.2);">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; text-align: center;">
+                <div><span class="lab">K/W (P/E)</span><span class="val" style="font-size:0.8rem;">73.6</span></div>
+                <div><span class="lab">EPS Groei</span><span class="val" style="font-size:0.8rem;">172.7%</span></div>
+                <div><span class="lab">ROE</span><span class="val" style="font-size:0.8rem;">31.0%</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $339.90</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+3.5% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $347.91</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-1.1% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $357.94</span>
+                <span style="font-size: 0.75rem; color: var(--accent-green);">-1.7% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+        <div class="metric"><span class="lab">Sentiment</span><span class="val">85%</span>
+            <div class="sentiment-bar"><div class="sentiment-fill" style="width:85%; background:var(--accent-green)"></div></div>
+        </div>
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">49.7</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$329.52</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-AVGO"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">MU</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$362.75</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +7.76% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-orange);">60%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:60%; background:var(--accent-orange); border-radius: 4px;"></div>
+        </div>
+
+        
+        <div class="levels-box" style="margin-top: 10px; background: rgba(88, 166, 255, 0.03); border-color: rgba(88, 166, 255, 0.2);">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; text-align: center;">
+                <div><span class="lab">K/W (P/E)</span><span class="val" style="font-size:0.8rem;">34.5</span></div>
+                <div><span class="lab">EPS Groei</span><span class="val" style="font-size:0.8rem;">180.2%</span></div>
+                <div><span class="lab">ROE</span><span class="val" style="font-size:0.8rem;">22.6%</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $332.68</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+9.0% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $344.18</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-5.1% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $266.01</span>
+                <span style="font-size: 0.75rem; color: var(--accent-red);">+36.4% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+        <div class="metric"><span class="lab">Sentiment</span><span class="val">65%</span>
+            <div class="sentiment-bar"><div class="sentiment-fill" style="width:65%; background:var(--accent-green)"></div></div>
+        </div>
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">74.3</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$333.12</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-MU"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">GOOGL</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$330.00</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-red); margin-top: -5px;">
+                    -0.84% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">75%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:75%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        <div class="levels-box" style="margin-top: 10px; background: rgba(88, 166, 255, 0.03); border-color: rgba(88, 166, 255, 0.2);">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; text-align: center;">
+                <div><span class="lab">K/W (P/E)</span><span class="val" style="font-size:0.8rem;">32.6</span></div>
+                <div><span class="lab">EPS Groei</span><span class="val" style="font-size:0.8rem;">33.0%</span></div>
+                <div><span class="lab">ROE</span><span class="val" style="font-size:0.8rem;">35.4%</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $329.78</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.1% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $336.73</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+2.0% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $309.27</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+6.7% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+        <div class="metric"><span class="lab">Sentiment</span><span class="val">65%</span>
+            <div class="sentiment-bar"><div class="sentiment-fill" style="width:65%; background:var(--accent-green)"></div></div>
+        </div>
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">73.9</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$315.94</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--text-dim)"></span>Geen 1H basis</div>
+        <div class="chart-wrap"><canvas id="chart-GOOGL"></canvas></div>
+    </div>
+    </div>
+        </section>
+
+        <section id="etfs" class="tab-content">
+            <div class="grid">
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">SWRD</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">€41.93</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +0.46% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">70%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:70%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: €41.63</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.7% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: €41.86</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-0.2% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: €40.63</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+3.2% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">84.8</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">€41.49</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-SWRD-AS"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">SPYI</span>
+            <span class="badge EXIT (STOP)">EXIT (STOP)</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">€258.00</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-red); margin-top: -5px;">
+                    -13.67% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">70%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:70%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: €298.85</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-13.7% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: €298.85</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+15.8% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: €249.08</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+3.6% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">55.3</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">€255.01</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-SPYI-DE"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">PHAG</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">€69.82</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-red); margin-top: -5px;">
+                    -2.57% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-red);">35%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:35%; background:var(--accent-red); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: €70.31</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-0.7% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: €72.61</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+4.0% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: €48.42</span>
+                <span style="font-size: 0.75rem; color: var(--accent-red);">+44.2% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">75.2</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">€64.93</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--text-dim)"></span>Geen 1H basis</div>
+        <div class="chart-wrap"><canvas id="chart-PHAG-MI"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">SGLD</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">€381.10</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +0.07% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-orange);">60%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:60%; background:var(--accent-orange); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: €378.38</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.7% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: €382.82</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.5% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: €351.34</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+8.5% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">66.9</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">€370.80</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--text-dim)"></span>Geen 1H basis</div>
+        <div class="chart-wrap"><canvas id="chart-SGLD-AS"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">COPM</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$10.12</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-red); margin-top: -5px;">
+                    -2.74% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-red);">35%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:35%; background:var(--accent-red); border-radius: 4px;"></div>
+        </div>
+
+        
+        <div class="levels-box" style="margin-top: 10px; background: rgba(88, 166, 255, 0.03); border-color: rgba(88, 166, 255, 0.2);">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; text-align: center;">
+                <div><span class="lab">K/W (P/E)</span><span class="val" style="font-size:0.8rem;">24.3</span></div>
+                <div><span class="lab">EPS Groei</span><span class="val" style="font-size:0.8rem;">0.0%</span></div>
+                <div><span class="lab">ROE</span><span class="val" style="font-size:0.8rem;">0.0%</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $10.27</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-1.4% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $10.47</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+3.5% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $8.62</span>
+                <span style="font-size: 0.75rem; color: var(--accent-red);">+17.4% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">65.4</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$9.69</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--text-dim)"></span>Geen 1H basis</div>
+        <div class="chart-wrap"><canvas id="chart-COPM-AS"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">U3O8</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">€14.06</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +6.35% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-orange);">50%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:50%; background:var(--accent-orange); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: €12.96</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+8.5% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: €13.43</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-4.5% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: €11.32</span>
+                <span style="font-size: 0.75rem; color: var(--accent-red);">+24.2% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">90.7</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">€13.40</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-U3O8-DE"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">EUDF</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">€35.28</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +1.79% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-orange);">60%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:60%; background:var(--accent-orange); border-radius: 4px;"></div>
+        </div>
+
+        
+        <div class="levels-box" style="margin-top: 10px; background: rgba(88, 166, 255, 0.03); border-color: rgba(88, 166, 255, 0.2);">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; text-align: center;">
+                <div><span class="lab">K/W (P/E)</span><span class="val" style="font-size:0.8rem;">37.2</span></div>
+                <div><span class="lab">EPS Groei</span><span class="val" style="font-size:0.8rem;">0.0%</span></div>
+                <div><span class="lab">ROE</span><span class="val" style="font-size:0.8rem;">0.0%</span></div>
+            </div>
+        </div>
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: €34.48</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+2.3% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: €34.79</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-1.4% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: €30.61</span>
+                <span style="font-size: 0.75rem; color: var(--accent-red);">+15.3% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">88.6</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">€34.10</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-EUDF-DE"></canvas></div>
+    </div>
+    </div>
+        </section>
+
+        <section id="macro" class="tab-content">
+            <div class="info-box">
+                <div class="info-title">📖 Macro-Legende: Hoe lees ik deze data?</div>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <b>📉 VIX (Angstmeter):</b> Meet de nervositeit. <br> 
+                        Low (<20): Rustige markt, goed voor aandelen. <br> 
+                        High (>25): Paniek, wees voorzichtig met nieuwe aankopen.
+                    </div>
+                    <div class="info-item">
+                        <b>💵 DXY (Dollar Index):</b> De waarde van de Dollar. <br> 
+                        Stijgend: Meestal <u>slecht</u> voor Goud en Zilver. <br> 
+                        Dalend: De "Turbo" voor je grondstoffen (ETC's).
+                    </div>
+                    <div class="info-item">
+                        <b>📈 TNX (10-jaars Rente):</b> De marktrente USA. <br> 
+                        Stijgend: Tech-aandelen (MSFT, GOOGL) worden minder waard. <br> 
+                        Dalend: Positief voor groei-aandelen en tech.
+                    </div>
+                    <div class="info-item">
+                        <b>🏗️ Grondstoffen Futures:</b> <br> 
+                        <b>GOUD (GC=F):</b> Voorloper voor SGLD. <br>
+                        <b>ZILVER (SI=F):</b> Voorloper voor PHAG. <br>
+                        <b>KOPER (HG=F):</b> Voorloper voor COPM. <br>
+                        <b>OLIE (CL=F):</b> Globale energieprijs.
+                    </div>
+                </div>
+            </div>
+            <div class="grid">
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">ANGST (VIX)</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$15.86</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +0.13% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-red);">25%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:25%; background:var(--accent-red); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $15.25</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+4.0% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $16.49</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+4.0% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $17.06</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-7.0% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">65.7</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$13.74</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bearish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--text-dim)"></span>Geen 1H basis</div>
+        <div class="chart-wrap"><canvas id="chart-^VIX"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">DOLLAR (DXY)</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$99.38</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +0.06% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">80%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:80%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $99.11</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.3% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $99.51</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.1% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $99.02</span>
+                <span style="font-size: 0.75rem; color: var(--accent-green);">+0.4% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">80.9</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$98.63</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-DX-Y-NYB"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">RENTE (10Y)</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$4.23</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +1.68% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">75%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:75%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $4.14</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+2.1% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $4.17</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-1.4% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $4.13</span>
+                <span style="font-size: 0.75rem; color: var(--accent-green);">+2.4% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">62.5</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$4.16</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bearish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--accent-green)"></span>Bevestigd op 1H</div>
+        <div class="chart-wrap"><canvas id="chart-^TNX"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">GOUD</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$4595.40</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-red); margin-top: -5px;">
+                    -0.45% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-orange);">65%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:65%; background:var(--accent-orange); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $4614.03</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-0.4% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $4617.43</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.5% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $4282.20</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+7.3% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">54.5</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$4511.83</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--text-dim)"></span>Geen 1H basis</div>
+        <div class="chart-wrap"><canvas id="chart-GC=F"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">ZILVER</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$88.54</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-red); margin-top: -5px;">
+                    -3.63% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">80%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:80%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $87.86</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+0.8% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $94.15</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+6.3% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $63.67</span>
+                <span style="font-size: 0.75rem; color: var(--accent-red);">+39.1% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">60.4</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$78.78</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--text-dim)"></span>Geen 1H basis</div>
+        <div class="chart-wrap"><canvas id="chart-SI=F"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">KOPER</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$5.83</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-red); margin-top: -5px;">
+                    -1.98% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-green);">75%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:75%; background:var(--accent-green); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $5.91</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">-1.3% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $5.97</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+2.4% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $5.38</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+8.4% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">51.9</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$5.61</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bullish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--text-dim)"></span>Geen 1H basis</div>
+        <div class="chart-wrap"><canvas id="chart-HG=F"></canvas></div>
+    </div>
+    
+    <div class="card">
+        <div class="ticker-row">
+            <span class="ticker">RUWE OLIE</span>
+            <span class="badge HOLD">HOLD</span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <div class="price">$59.34</div>
+                <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-green); margin-top: -5px;">
+                    +0.25% (24u)
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="lab">AI Confidence</span>
+                <span style="display: block; font-size: 1.2rem; font-weight: 700; color: var(--accent-orange);">65%</span>
+            </div>
+        </div>
+
+        <div class="sentiment-bar" style="height: 8px; margin-top: -5px; border-radius: 4px; background: rgba(255,255,255,0.05);">
+            <div class="sentiment-fill" style="width:65%; background:var(--accent-orange); border-radius: 4px;"></div>
+        </div>
+
+        
+        
+        <div class="levels-box" style="flex-direction: column; gap: 5px; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-red)">📉 S1: $58.33</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+1.7% vanaf steun</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%;">
+                <span style="color:var(--accent-green)">📈 R1: $60.59</span>
+                <span style="font-size: 0.75rem; color: var(--text-dim);">+2.1% tot weerstand</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; width: 100%; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 5px;">
+                <span style="color:var(--accent-blue)">🧲 MA50: $58.57</span>
+                <span style="font-size: 0.75rem; color: var(--accent-green);">+1.3% vs MA50</span>
+            </div>
+        </div>
+        <div class="metric-grid">
+            
+            <div class="metric"><span class="lab">RSI (14)</span><span class="val">59.0</span></div>
+            <div class="metric"><span class="lab">Trailing Stop</span><span class="val" style="color:var(--accent-red)">$55.67</span></div>
+            <div class="metric"><span class="lab">Trend</span><span class="val">Bearish</span></div>
+        </div>
+        <div class="confirmation"><span class="dot" style="background:var(--text-dim)"></span>Geen 1H basis</div>
+        <div class="chart-wrap"><canvas id="chart-CL=F"></canvas></div>
+    </div>
+    </div>
+        </section>
+
+        <section id="guide" class="tab-content">
+            <div class="info-box" style="border-color: var(--accent-orange); background: rgba(210, 153, 34, 0.05);">
+                <div class="info-title" style="color: var(--accent-orange);">📘 Dashboard Gids: Hoe word ik een Master Trader?</div>
+                
+                <div class="fund-item">
+                    <h3 style="color: #fff; margin-bottom: 0.8rem;">1. De AI Signals (Badges)</h3>
+                    <p style="font-size: 0.9rem; line-height: 1.5;">
+                        <b>BUY:</b> Alle lichten op groen. RSI laag, trend positief, hoog volume. <br>
+                        <b>HOLD:</b> Geen actie nodig. De koers volgt zijn natuurlijke weg. <br>
+                        <b>SELL:</b> De koers is oververhit (RSI > 70) of de trend draait. <br>
+                        <b>EXIT:</b> Nooduitgang. De koers is onder je Trailing Stop gezakt. Bescherm je kapitaal!
+                    </p>
+                </div>
+
+                <div class="fund-item">
+                    <h3 style="color: var(--accent-blue); margin-bottom: 0.8rem;">2. AI Confidence Score (%)</h3>
+                    <p style="font-size: 0.9rem; line-height: 1.5;">
+                        Dit is de "betrouwbaarheid" van de huidige status. <br>
+                        <b>> 80%:</b> Zeer sterke overtuiging van de AI. Meerdere indicatoren bevestigen elkaar. <br>
+                        <b>50-70%:</b> Normale marktconditie. <br>
+                        <b>< 40%:</b> Onvoorspelbaar of overstretched. Wees voorzichtig.
+                    </p>
+                </div>
+
+                <div class="fund-item">
+                    <h3 style="color: var(--accent-green); margin-bottom: 0.8rem;">3. De Niveaus & Grafiek</h3>
+                    <p style="font-size: 0.9rem; line-height: 1.5;">
+                        <b>📉 S1 (Support):</b> De vloer. Koop zo dicht mogelijk bij dit niveau. <br>
+                        <b>📈 R1 (Resistance):</b> Het plafond. Hier kan de koers tijdelijk stoppen. <br>
+                        <b>🧲 MA50 (Trendlijn):</b> In de grafiek zie je een <u>gestreepte lijn</u>. Dit is de MA50. Ligt de prijs (blauwe lijn) daarboven? Dan is de korte-termijn trend positief.
+                    </p>
+                </div>
+
+                <div class="fund-item">
+                    <h3 style="color: #fff; margin-bottom: 0.8rem;">4. Momentum (24u %)</h3>
+                    <p style="font-size: 0.9rem; line-height: 1.5;">
+                        Direct onder de prijs zie je de stijging of daling van vandaag. <br>
+                        <b>Groen:</b> Het aandeel heeft momentum en trekt kopers aan. <br>
+                        <b>Rood:</b> Er is verkoopdruk; wees alert als de koers richting je Trailing Stop zakt.
+                    </p>
+                </div>
+
+                <div class="fund-item">
+                    <h3 style="color: var(--accent-orange); margin-bottom: 0.8rem;">5. Fundamentele Quick-Check</h3>
+                    <p style="font-size: 0.9rem; line-height: 1.5;">
+                        <b>K/W:</b> Is de prijs eerlijk? (Lager is vaak goedkoper). <br>
+                        <b>EPS Groei:</b> Maakt het bedrijf meer winst dan vroeger? <br>
+                        <b>ROE:</b> Is het management efficiënt met jouw geld?
+                    </p>
+                </div>
+
+                <div class="fund-item">
+                    <h3 style="color: #fff; margin-bottom: 0.8rem;">5. Automatische Updates</h3>
+                    <p style="font-size: 0.9rem; line-height: 1.5;">
+                        Dit dashboard ververst elke <b>15 minuten</b> de data en ververst de pagina elke <b>5 minuten</b>. <br>
+                        Je ziet bovenaan altijd de <u>Last Update</u> tijd staan.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <section id="analysis_knowledge" class="tab-content">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 2rem;">
+                <!-- Technische Analyse Kolom -->
+                <div>
+                    <div class="info-box" style="border-color: var(--accent-blue); background: rgba(88, 166, 255, 0.05); height: 100%;">
+                        <div class="info-title">🛠️ Technische Analyse</div>
+                        <p style="font-size: 0.85rem; margin-bottom: 1.5rem; color: var(--text-dim);">Focus op <u>momentum</u> en <u>timing</u>.</p>
+
+                        <div class="fund-item">
+                            <h4 style="color: var(--accent-blue); margin-bottom: 0.3rem;">Moving Averages (MA50/200)</h4>
+                            <p style="font-size: 0.85rem;">De ruggengraat van de trend. Golden Cross (MA50 > MA200) is extreem bullish.</p>
+                        </div>
+                        <div class="fund-item">
+                            <h4 style="color: var(--accent-green); margin-bottom: 0.3rem;">RSI (Overbought/Oversold)</h4>
+                            <p style="font-size: 0.85rem;">< 30 is koopmoment, > 70 is winst nemen.</p>
+                        </div>
+                        <div class="fund-item">
+                            <h4 style="color: var(--accent-orange); margin-bottom: 0.3rem;">Support (S1) & Resistance (R1)</h4>
+                            <p style="font-size: 0.85rem;">De psychologische vloer en het plafond van de koers.</p>
+                        </div>
+                        <div class="fund-item">
+                            <h4 style="color: var(--accent-red); margin-bottom: 0.3rem;">ATR Trailing Stop</h4>
+                            <p style="font-size: 0.85rem;">De risico-grens. Breekt de prijs hieronder? Dan is het EXIT.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fundamentele Analyse Kolom -->
+                <div>
+                    <div class="info-box" style="border-color: var(--accent-green); background: rgba(63, 185, 80, 0.05); height: 100%;">
+                        <div class="info-title" style="color: var(--accent-green);">🏗️ Fundamentele Analyse</div>
+                        <p style="font-size: 0.85rem; margin-bottom: 1.5rem; color: var(--text-dim);">Focus op <u>kwaliteit</u> en <u>waarde</u>.</p>
+
+                        <div class="fund-item">
+                            <h4 style="color: var(--accent-green); margin-bottom: 0.3rem;">EPS Groei (Winststijging)</h4>
+                            <p style="font-size: 0.85rem;">Stijgt de winst per aandeel? Dit is de motor achter de koers.</p>
+                        </div>
+                        <div class="fund-item">
+                            <h4 style="color: var(--accent-blue); margin-bottom: 0.3rem;">K/W Verhouding (Price/Earnings)</h4>
+                            <p style="font-size: 0.85rem;">Wat betaal je voor 1 euro winst? Lager is vaak relatief goedkoper.</p>
+                        </div>
+                        <div class="fund-item">
+                            <h4 style="color: var(--accent-orange); margin-bottom: 0.3rem;">ROE (Return on Equity)</h4>
+                            <p style="font-size: 0.85rem;">Management efficiëntie. > 15% wijst op een topbedrijf.</p>
+                        </div>
+                        <div class="fund-item">
+                            <h4 style="color: var(--accent-red); margin-bottom: 0.3rem;">Schuldgraad (Debt/Equity)</h4>
+                            <p style="font-size: 0.85rem;">Is het bedrijf financieel gezond? Ratio < 1.0 is ideaal.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+    const chartData = {"MSFT": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [480.8399963378906, 483.1600036621094, 491.0199890136719, 492.0199890136719, 478.55999755859375, 483.4700012207031, 478.5299987792969, 474.82000732421875, 476.3900146484375, 476.1199951171875, 483.9800109863281, 485.9200134277344, 484.9200134277344, 486.8500061035156, 488.0199890136719, 487.7099914550781, 487.1000061035156, 487.4800109863281, 483.6199951171875, 472.94000244140625, 472.8500061035156, 478.510009765625, 483.4700012207031, 478.1099853515625, 479.2799987792969, 477.17999267578125, 470.6700134277344, 459.3800048828125, 456.6600036621094, 459.8599853515625], "ma50": [507.494375, 507.0359191894531, 506.6462286376953, 506.2138562011719, 505.4454077148437, 504.7400250244141, 504.0150939941406, 503.18382446289064, 502.15997314453125, 501.22235107421875, 500.42456115722655, 499.7144787597656, 499.2127697753906, 498.6879766845703, 498.19616455078125, 497.70094787597657, 497.22986328125, 496.72705139160155, 496.0829608154297, 495.20790222167966, 494.27355102539065, 493.4520007324219, 492.66876403808595, 491.6204217529297, 490.38487426757814, 489.1177075195312, 488.0355511474609, 486.88629821777346, 485.6982153320312, 484.6280310058594]}, "AMZN": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [229.11000061035156, 229.52999877929688, 226.88999938964844, 227.9199981689453, 231.77999877929688, 230.27999877929688, 226.19000244140625, 222.5399932861328, 222.55999755859375, 221.27000427246094, 226.75999450683594, 227.35000610351562, 228.42999267578125, 232.13999938964844, 232.3800048828125, 232.52000427246094, 232.07000732421875, 232.52999877929688, 230.82000732421875, 226.5, 233.05999755859375, 240.92999267578125, 241.55999755859375, 246.2899932861328, 247.3800048828125, 246.47000122070312, 242.60000610351562, 236.64999389648438, 238.17999267578125, 239.1199951171875], "ma50": [228.16260040283203, 228.39020050048828, 228.53240051269532, 228.6474005126953, 228.89160034179687, 229.08460021972655, 229.1602001953125, 229.22080017089843, 229.25400024414063, 229.2438003540039, 229.27460021972655, 229.2668002319336, 229.50800018310548, 229.74940002441406, 230.06920013427734, 230.4082000732422, 230.7602001953125, 231.15000030517578, 231.43680053710938, 231.52620056152344, 231.82840057373048, 232.22520050048828, 232.57220031738282, 232.9586001586914, 233.32120025634765, 233.64460021972656, 234.03940032958985, 233.88800018310548, 233.5716000366211, 233.36759979248046]}, "UBER": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [90.98999786376953, 91.31999969482422, 92.56999969482422, 89.06999969482422, 84.16000366210938, 85.44000244140625, 85.11000061035156, 81.86000061035156, 80.91999816894531, 79.13999938964844, 79.69000244140625, 79.30999755859375, 81.26000213623047, 80.97000122070312, 81.1500015258789, 81.26000213623047, 81.5, 82.12000274658203, 81.70999908447266, 82.86000061035156, 80.73999786376953, 85.54000091552734, 86.19000244140625, 87.58999633789062, 85.44000244140625, 84.66999816894531, 85.41000366210938, 84.6500015258789, 84.37999725341797, 84.8499984741211], "ma50": [93.15839996337891, 93.03279998779297, 92.9152000427246, 92.70520004272461, 92.42900009155274, 92.20560012817383, 91.97560012817382, 91.68080017089844, 91.29720016479492, 90.92400009155273, 90.53220016479492, 90.19840011596679, 89.95560012817383, 89.6934001159668, 89.43140014648438, 89.16620025634765, 88.94580032348632, 88.74220031738281, 88.50240036010742, 88.29900039672852, 88.06960037231445, 87.88820037841796, 87.73060043334961, 87.55400039672851, 87.35420043945312, 87.13240036010743, 86.91080047607421, 86.6738005065918, 86.3670004272461, 86.1706004333496]}, "SOF.BR": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [236.0, 237.1999969482422, 242.60000610351562, 241.60000610351562, 243.1999969482422, 238.8000030517578, 237.1999969482422, 238.1999969482422, 241.0, 242.1999969482422, 241.0, 243.39999389648438, 242.0, 244.0, 245.0, 245.1999969482422, 244.8000030517578, 246.0, 247.0, 247.1999969482422, 254.1999969482422, 255.0, 255.8000030517578, 256.20001220703125, 259.20001220703125, 259.20001220703125, 257.6000061035156, 260.79998779296875, 264.0, 264.20001220703125], "ma50": [243.5079995727539, 243.17999938964843, 242.94399963378908, 242.6359997558594, 242.47999969482422, 242.31599975585937, 241.8959994506836, 241.65999938964845, 241.44799926757813, 241.3559991455078, 241.25999908447267, 241.21999908447265, 241.21199920654297, 241.2359991455078, 241.35199920654296, 241.39199920654298, 241.43999938964845, 241.57199951171876, 241.63999938964844, 241.69199920654296, 241.91199920654296, 242.12399932861328, 242.32799926757812, 242.57999938964844, 242.9199996948242, 243.28, 243.62400024414063, 244.0720001220703, 244.51600006103516, 244.96000030517578]}, "AVGO": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [380.3023376464844, 389.4947509765625, 400.3340148925781, 405.51409912109375, 412.18133544921875, 405.59393310546875, 359.24261474609375, 339.1610412597656, 340.648193359375, 325.3973693847656, 329.2500305175781, 339.7099914550781, 341.45001220703125, 349.32000732421875, 350.2200012207031, 352.1300048828125, 349.3900146484375, 349.8500061035156, 346.1000061035156, 347.6199951171875, 343.4200134277344, 343.7699890136719, 343.5, 332.4800109863281, 344.9700012207031, 352.2099914550781, 354.6099853515625, 339.8900146484375, 343.0199890136719, 351.7099914550781], "ma50": [353.7768872070312, 354.85761962890626, 356.18647705078126, 357.75128295898435, 359.40931030273435, 360.8661224365234, 361.3002917480469, 361.3290368652344, 361.4450146484375, 361.23761108398435, 360.9258081054688, 360.8327862548828, 361.18158569335935, 361.04760986328125, 361.1825537109375, 361.21197326660155, 361.13030029296874, 361.15404296875, 361.1045825195313, 361.2168701171875, 361.2922680664062, 361.29501770019533, 361.09594360351565, 360.5183721923828, 359.97261779785157, 359.3119598388672, 358.88913879394534, 358.30845703125, 357.93170471191405, 357.940546875]}, "MU": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [226.5584716796875, 237.12420654296875, 246.82028198242188, 252.3180694580078, 263.6034851074219, 258.3556213378906, 241.04261779785156, 237.4040985107422, 232.41610717773438, 225.42893981933594, 248.4496307373047, 265.8126220703125, 276.4783020019531, 276.1584167480469, 286.5642395019531, 284.6750183105469, 294.3699951171875, 292.6300048828125, 285.4100036621094, 315.4200134277344, 312.1499938964844, 343.42999267578125, 339.54998779296875, 327.0199890136719, 345.0899963378906, 345.8699951171875, 338.1300048828125, 333.3500061035156, 336.6300048828125, 362.75], "ma50": [212.36495056152344, 213.97406341552735, 215.76830688476562, 217.54004302978515, 219.46915740966796, 220.99702026367189, 222.14665588378907, 223.1396548461914, 223.97031921386719, 224.76659759521485, 225.80637756347656, 227.27758331298827, 229.1766159057617, 230.84594116210937, 232.83753692626954, 234.6937875366211, 236.5322232055664, 238.3388577270508, 239.91332763671875, 242.17756195068358, 244.45276458740236, 247.18883392333984, 249.60120239257813, 251.74137969970704, 254.20677185058594, 256.59340209960936, 258.87761138916017, 261.07101867675783, 263.11151428222655, 266.00767517089844]}, "GOOGL": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [317.4123840332031, 321.0599670410156, 313.7200012207031, 317.0799865722656, 320.2099914550781, 312.42999267578125, 309.2900085449219, 308.2200012207031, 306.57000732421875, 296.7200012207031, 302.4599914550781, 307.1600036621094, 309.7799987792969, 314.3500061035156, 314.0899963378906, 313.510009765625, 313.55999755859375, 313.8500061035156, 313.0, 315.1499938964844, 316.5400085449219, 314.3399963378906, 321.9800109863281, 325.44000244140625, 328.57000732421875, 331.8599853515625, 335.9700012207031, 335.8399963378906, 332.7799987792969, 330.0], "ma50": [273.0008288574219, 274.5094418334961, 275.85626525878905, 277.3200555419922, 278.86543334960936, 280.2192349243164, 281.49444702148435, 282.75505462646487, 283.88112884521485, 284.9035418701172, 286.0635397338867, 287.3792974853516, 288.8465902709961, 290.2537823486328, 291.6297912597656, 292.88267333984373, 294.1279608154297, 295.3422723388672, 296.47462646484377, 297.7717007446289, 299.07199127197265, 300.30049987792967, 301.54509765625, 302.67201843261716, 303.89751525878904, 305.046904296875, 306.1403839111328, 307.23705993652345, 308.22196899414064, 309.27479736328127]}, "SWRD.AS": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [40.55799865722656, 40.54199981689453, 40.577999114990234, 40.66299819946289, 40.82400131225586, 40.790000915527344, 40.79999923706055, 40.69300079345703, 40.54199981689453, 40.31700134277344, 40.37699890136719, 40.10300064086914, 39.983001708984375, 40.37799835205078, 40.5629997253418, 40.65299987792969, 40.729000091552734, 40.7760009765625, 40.770999908447266, 40.875, 40.7859992980957, 40.683998107910156, 41.198001861572266, 41.34299850463867, 41.459999084472656, 41.39699935913086, 41.73400115966797, 41.71500015258789, 41.737998962402344, 41.92599868774414], "ma50": [40.02565986633301, 40.05317985534668, 40.08077980041504, 40.111339797973635, 40.14733985900879, 40.18059989929199, 40.21165985107422, 40.24211990356445, 40.26375991821289, 40.27809997558594, 40.290279922485354, 40.294219970703125, 40.2971199798584, 40.3007999420166, 40.30805992126465, 40.33239990234375, 40.35233993530274, 40.377259979248045, 40.39669998168945, 40.42, 40.449219970703126, 40.46273994445801, 40.48327995300293, 40.511039886474606, 40.538059844970704, 40.552259826660155, 40.572119827270505, 40.589919815063475, 40.606879806518556, 40.62869979858399]}, "SPYI.DE": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [247.14999389648438, 247.10000610351562, 247.14999389648438, 247.89999389648438, 248.89999389648438, 248.35000610351562, 248.5, 248.14999389648438, 247.4499969482422, 245.85000610351562, 246.14999389648438, 244.35000610351562, 243.3000030517578, 246.0500030517578, 247.10000610351562, 247.6999969482422, 248.14999389648438, 248.89999389648438, 249.4499969482422, 248.9499969482422, 252.5500030517578, 253.64999389648438, 254.14999389648438, 253.75, 256.1000061035156, 256.20001220703125, 256.79998779296875, 255.1999969482422, 298.8457946777344, 258.0], "ma50": [244.07499938964844, 244.24299957275392, 244.40199951171874, 244.58299926757812, 244.79199920654298, 244.98999938964843, 245.1789993286133, 245.36999908447265, 245.50799896240235, 245.59599914550782, 245.66799896240235, 245.68199920654297, 245.68699920654296, 245.70499938964844, 245.74299957275392, 245.89799957275392, 246.0209994506836, 246.17099945068358, 246.3039993286133, 246.43099914550783, 246.67999908447266, 246.8639990234375, 247.0439990234375, 247.2419989013672, 247.46499908447265, 247.6209994506836, 247.78399932861328, 247.90599914550782, 248.8979150390625, 249.07891510009765]}, "PHAG.MI": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [43.810001373291016, 45.834999084472656, 45.2599983215332, 45.95500183105469, 44.70000076293945, 45.845001220703125, 45.56999969482422, 47.35499954223633, 47.63999938964844, 49.290000915527344, 47.8849983215332, 49.095001220703125, 49.150001525878906, 51.11000061035156, 51.2400016784668, 52.150001525878906, 53.08000183105469, 54.40999984741211, 55.5, 59.11000061035156, 55.720001220703125, 60.040000915527344, 63.029998779296875, 61.099998474121094, 59.529998779296875, 62.849998474121094, 67.33000183105469, 69.41999816894531, 71.66000366210938, 69.81999969482422], "ma50": [38.69560012817383, 38.94760009765625, 39.17270004272461, 39.40550010681152, 39.61460014343262, 39.830700149536135, 40.024500122070314, 40.240900115966795, 40.47250007629395, 40.72140007019043, 40.95900001525879, 41.18860000610351, 41.41350006103516, 41.68320007324219, 41.93160011291504, 42.178400115966795, 42.45530014038086, 42.73030014038086, 43.026100158691406, 43.3835001373291, 43.65380012512207, 44.038400115966795, 44.47770011901856, 44.93400009155273, 45.368100051879885, 45.84889999389648, 46.46360000610352, 47.11509994506836, 47.7925, 48.41889999389648]}, "SGLD.AS": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [350.4800109863281, 346.8500061035156, 348.2300109863281, 348.07000732421875, 348.95001220703125, 347.57000732421875, 348.5199890136719, 347.30999755859375, 348.9200134277344, 351.2300109863281, 351.69000244140625, 351.94000244140625, 354.5299987792969, 358.29998779296875, 357.1499938964844, 363.3299865722656, 364.6000061035156, 366.79998779296875, 355.3299865722656, 357.29998779296875, 353.3399963378906, 353.760009765625, 365.0400085449219, 369.5, 367.6000061035156, 368.4599914550781, 372.7900085449219, 380.94000244140625, 380.8299865722656, 381.1000061035156], "ma50": [334.0205993652344, 334.85319946289064, 335.6429998779297, 336.45619995117187, 337.2820001220703, 338.01180053710937, 338.6960003662109, 339.34460021972654, 339.97820068359374, 340.68640075683595, 341.3488006591797, 341.8876007080078, 342.40080078125, 342.86080078125, 343.3188006591797, 343.9356005859375, 344.4138006591797, 344.87380065917966, 345.0442004394531, 345.1416003417969, 345.1820001220703, 345.075400390625, 345.5300006103516, 346.23820068359373, 346.7140008544922, 347.48320068359374, 348.3976007080078, 349.4140008544922, 350.3768005371094, 351.34460083007815]}, "COPM.AS": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [8.5, 8.493499755859375, 8.54800033569336, 8.44849967956543, 8.40530014038086, 8.497200012207031, 8.75059986114502, 8.59630012512207, 8.701399803161621, 8.602499961853027, 8.718199729919434, 8.77340030670166, 8.933699607849121, 9.1181001663208, 9.214599609375, 9.279399871826172, 9.126399993896484, 9.260700225830078, 9.208800315856934, 9.229900360107422, 9.613499641418457, 9.942999839782715, 9.669400215148926, 9.513299942016602, 9.77649974822998, 10.069999694824219, 10.042200088500977, 10.286100387573242, 10.404600143432617, 10.119999885559082], "ma50": [7.708650035858154, 7.736538028717041, 7.763936033248902, 7.782680025100708, 7.801664028167725, 7.8211360263824465, 7.846260023117066, 7.863304023742676, 7.883080015182495, 7.9019460105896, 7.91874400138855, 7.937240009307861, 7.962616004943848, 7.9864780044555665, 8.015759992599488, 8.042847986221313, 8.067007989883423, 8.099287996292114, 8.127063999176025, 8.161740007400512, 8.205346002578736, 8.252010002136231, 8.292946004867554, 8.330854005813599, 8.371057996749878, 8.412457990646363, 8.458365993499756, 8.509146003723144, 8.566338005065917, 8.62034200668335]}, "U3O8.DE": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [10.77400016784668, 10.64799976348877, 10.817999839782715, 11.0600004196167, 11.508000373840332, 11.621999740600586, 11.338000297546387, 11.258000373840332, 11.071999549865723, 11.218000411987305, 10.880000114440918, 10.857999801635742, 10.40999984741211, 10.350000381469727, 10.489999771118164, 11.140000343322754, 11.354000091552734, 11.197999954223633, 11.350000381469727, 11.236000061035156, 11.800000190734863, 12.312000274658203, 12.640000343322754, 12.645999908447266, 12.758000373840332, 12.970000267028809, 12.906000137329102, 13.022000312805176, 13.220000267028809, 14.0600004196167], "ma50": [11.409940032958984, 11.403500022888183, 11.394700012207032, 11.383620014190674, 11.378540019989014, 11.37574001312256, 11.367740020751953, 11.358340034484863, 11.34718002319336, 11.341260032653809, 11.32630002975464, 11.308300018310547, 11.278500022888183, 11.249300022125244, 11.221340026855469, 11.20358003616333, 11.185140037536621, 11.16358003616333, 11.137020034790039, 11.10134002685547, 11.083140029907227, 11.100340042114258, 11.125260047912597, 11.159940052032471, 11.196660060882568, 11.232180061340332, 11.270300064086914, 11.285100078582763, 11.297620086669921, 11.322820091247559]}, "EUDF.DE": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [27.795000076293945, 28.110000610351562, 28.575000762939453, 28.899999618530273, 28.864999771118164, 29.354999542236328, 29.915000915527344, 29.5049991607666, 29.329999923706055, 29.434999465942383, 29.420000076293945, 28.68000030517578, 28.780000686645508, 29.520000457763672, 29.84000015258789, 29.719999313354492, 29.760000228881836, 29.485000610351562, 29.65999984741211, 30.78499984741211, 32.369998931884766, 32.54499816894531, 33.880001068115234, 34.27000045776367, 34.810001373291016, 35.20500183105469, 35.209999084472656, 34.73500061035156, 34.65999984741211, 35.279998779296875], "ma50": [31.43139991760254, 31.35109992980957, 31.264499969482422, 31.18419994354248, 31.09959991455078, 31.016399917602538, 30.94129997253418, 30.861799964904787, 30.766899948120116, 30.673399925231934, 30.593099899291992, 30.50299987792969, 30.403399925231934, 30.325999946594237, 30.270399971008302, 30.21509994506836, 30.164999961853027, 30.127499961853026, 30.085299949645997, 30.091199951171873, 30.10919994354248, 30.124799919128417, 30.167799949645996, 30.214099960327147, 30.271499977111816, 30.34060001373291, 30.406399993896486, 30.468899993896486, 30.536100006103517, 30.609799995422364]}, "^VIX": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [15.779999732971191, 15.40999984741211, 16.65999984741211, 16.93000030517578, 15.770000457763672, 14.850000381469727, 15.739999771118164, 16.5, 16.479999542236328, 17.6200008392334, 16.8700008392334, 14.90999984741211, 14.079999923706055, 14.0, 13.470000267028809, 13.600000381469727, 14.199999809265137, 14.329999923706055, 14.949999809265137, 14.510000228881836, 14.899999618530273, 14.75, 15.380000114440918, 15.449999809265137, 14.489999771118164, 15.119999885559082, 15.979999542236328, 16.75, 15.84000015258789, 15.859999656677246], "ma50": [18.485800075531007, 18.459200077056884, 18.486600074768067, 18.502800064086912, 18.49260005950928, 18.463800048828126, 18.446000061035157, 18.44300006866455, 18.445200042724608, 18.452800064086915, 18.46420009613037, 18.433800086975097, 18.282200088500975, 18.181600074768067, 18.034800090789794, 17.89400011062622, 17.671800117492676, 17.542800102233887, 17.47720010757446, 17.410000095367433, 17.336000080108644, 17.285000095367433, 17.265200080871583, 17.258400077819825, 17.219800071716307, 17.18380006790161, 17.165200061798096, 17.151400051116944, 17.124800052642822, 17.06200004577637]}, "DX-Y.NYB": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [98.98999786376953, 98.98999786376953, 99.08999633789062, 99.22000122070312, 98.79000091552734, 98.3499984741211, 98.4000015258789, 98.1500015258789, 98.1500015258789, 98.37000274658203, 98.43000030517578, 98.5999984741211, 98.29000091552734, 97.94000244140625, 97.9800033569336, 98.0199966430664, 98.04000091552734, 98.23999786376953, 98.27999877929688, 98.41999816894531, 98.2699966430664, 98.58000183105469, 98.68000030517578, 98.93000030517578, 99.12999725341797, 98.86000061035156, 99.12999725341797, 99.12999725341797, 99.31999969482422, 99.375], "ma50": [99.11580047607421, 99.12460037231445, 99.14340026855469, 99.16960021972656, 99.19000030517579, 99.20280029296875, 99.21380035400391, 99.22240036010743, 99.22320037841797, 99.21900039672852, 99.21060043334961, 99.19180038452149, 99.17800033569335, 99.15140045166015, 99.13000045776367, 99.11460037231446, 99.10760040283203, 99.10380035400391, 99.09760040283203, 99.08740036010742, 99.07480026245118, 99.06760025024414, 99.06220031738282, 99.06520034790039, 99.07400024414062, 99.0668002319336, 99.05880020141602, 99.04540008544922, 99.03440002441407, 99.0175]}, "^TNX": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [4.107999801635742, 4.138999938964844, 4.171999931335449, 4.185999870300293, 4.164000034332275, 4.140999794006348, 4.193999767303467, 4.182000160217285, 4.14900016784668, 4.151000022888184, 4.116000175476074, 4.151000022888184, 4.169000148773193, 4.169000148773193, 4.136000156402588, 4.136000156402588, 4.116000175476074, 4.130000114440918, 4.163000106811523, 4.186999797821045, 4.164999961853027, 4.178999900817871, 4.138000011444092, 4.183000087738037, 4.171000003814697, 4.186999797821045, 4.171000003814697, 4.139999866485596, 4.159999847412109, 4.230999946594238], "ma50": [4.077099986076355, 4.076439986228943, 4.076139988899231, 4.07703999042511, 4.07735999584198, 4.078059992790222, 4.080179991722107, 4.081439995765686, 4.081179995536804, 4.081659998893738, 4.081399998664856, 4.081460003852844, 4.083820004463195, 4.0861800050735475, 4.088460011482239, 4.090260014533997, 4.09306001663208, 4.09552001953125, 4.099060020446777, 4.103540015220642, 4.107780013084412, 4.111540012359619, 4.114360013008118, 4.118080015182495, 4.121840014457702, 4.124420008659363, 4.125980010032654, 4.126760010719299, 4.127840008735657, 4.130680003166199]}, "GC=F": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [4211.7998046875, 4212.89990234375, 4187.2001953125, 4206.7001953125, 4196.39990234375, 4285.5, 4300.10009765625, 4306.7001953125, 4304.5, 4347.5, 4339.5, 4361.39990234375, 4444.60009765625, 4482.7998046875, 4480.60009765625, 4529.10009765625, 4325.10009765625, 4370.10009765625, 4325.60009765625, 4314.39990234375, 4436.89990234375, 4482.2001953125, 4449.2998046875, 4449.7001953125, 4490.2998046875, 4604.2998046875, 4589.2001953125, 4626.2998046875, 4616.2998046875, 4595.39990234375], "ma50": [4051.833974609375, 4061.353974609375, 4069.5919775390626, 4077.3079833984375, 4084.41998046875, 4092.77998046875, 4101.987983398438, 4110.505986328125, 4117.625986328125, 4125.043984375, 4130.967983398437, 4139.26998046875, 4148.643984375, 4156.127978515625, 4162.9659765625, 4170.00998046875, 4170.907978515625, 4174.511982421875, 4174.295986328125, 4178.829985351563, 4186.679985351562, 4193.813989257813, 4200.431987304688, 4209.387993164062, 4219.869990234375, 4232.281987304687, 4244.039990234375, 4256.921987304688, 4269.241982421875, 4282.195981445312]}, "SI=F": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [56.84700012207031, 58.422000885009766, 57.77899932861328, 60.16899871826172, 60.37900161743164, 63.92900085449219, 61.36199951171875, 62.939998626708984, 62.70000076293945, 66.23699951171875, 64.59200286865234, 66.84500122070312, 67.90599822998047, 70.48500061035156, 71.03099822998047, 76.48600006103516, 69.85600280761719, 77.3740005493164, 70.13400268554688, 70.55599975585938, 76.16400146484375, 80.52999877929688, 77.13500213623047, 74.71600341796875, 78.88400268554688, 84.61000061035156, 85.87699890136719, 90.86900329589844, 91.8759994506836, 88.53700256347656], "ma50": [49.754519882202146, 50.02901992797852, 50.260179901123045, 50.53131988525391, 50.81383995056152, 51.14661994934082, 51.453859939575196, 51.76071990966797, 52.05307991027832, 52.434239883422855, 52.75295997619629, 53.15286003112793, 53.5722200012207, 53.97931999206543, 54.39365997314453, 54.90191993713379, 55.238580017089845, 55.78878005981446, 56.16908012390137, 56.63120010375977, 57.20526016235352, 57.84622016906738, 58.42138023376465, 58.98446029663086, 59.6196403503418, 60.35742034912109, 61.10640029907226, 61.96390037536621, 62.84366035461426, 63.67180038452148]}, "HG=F": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [5.291500091552734, 5.381999969482422, 5.364500045776367, 5.240499973297119, 5.2754998207092285, 5.427000045776367, 5.2835001945495605, 5.338500022888184, 5.2870001792907715, 5.363500118255615, 5.366499900817871, 5.439499855041504, 5.4375, 5.47599983215332, 5.498499870300293, 5.766499996185303, 5.490499973297119, 5.727499961853027, 5.630000114440918, 5.639999866485596, 5.924499988555908, 6.010499954223633, 5.809000015258789, 5.746500015258789, 5.855500221252441, 5.985000133514404, 5.96999979019165, 6.008999824523926, 5.947999954223633, 5.830999851226807], "ma50": [5.017379980087281, 5.031019983291626, 5.04399998664856, 5.051989984512329, 5.061399984359741, 5.073329982757568, 5.081039991378784, 5.086649990081787, 5.092649993896484, 5.098959999084473, 5.105369997024536, 5.1126499938964844, 5.124429998397827, 5.131939992904663, 5.14229998588562, 5.15818998336792, 5.168839979171753, 5.184759979248047, 5.197399978637695, 5.211599979400635, 5.230869979858398, 5.24943998336792, 5.263749980926514, 5.275869979858398, 5.2901699829101565, 5.30519998550415, 5.323039979934692, 5.341909980773925, 5.35992998123169, 5.378029975891113]}, "CL=F": {"labels": ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""], "prices": [59.66999816894531, 60.08000183105469, 58.880001068115234, 58.25, 58.459999084472656, 57.599998474121094, 57.439998626708984, 56.81999969482422, 55.27000045776367, 55.939998626708984, 56.150001525878906, 56.65999984741211, 58.0099983215332, 58.380001068115234, 58.349998474121094, 56.7400016784668, 58.08000183105469, 57.95000076293945, 57.41999816894531, 57.31999969482422, 58.31999969482422, 57.130001068115234, 55.9900016784668, 57.7599983215332, 59.119998931884766, 59.5, 61.150001525878906, 62.02000045776367, 59.189998626708984, 59.34000015258789], "ma50": [60.096200180053714, 59.99820014953613, 59.86140014648438, 59.75740013122559, 59.679200134277345, 59.59560012817383, 59.53480010986328, 59.45360008239746, 59.325200119018554, 59.20940010070801, 59.08140014648438, 58.98440017700195, 58.96660011291504, 58.94440010070801, 58.93740005493164, 58.9068000793457, 58.91920013427735, 58.92740013122559, 58.92540008544922, 58.91540008544922, 58.9118000793457, 58.81860008239746, 58.708400115966796, 58.63740005493164, 58.61680000305176, 58.59720001220703, 58.60880004882812, 58.629600067138675, 58.59240005493164, 58.56800003051758]}};
+    
+    function openTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    function initCharts() {
+        Object.keys(chartData).forEach(ticker => {
+            const canvas = document.getElementById('chart-' + ticker.replace('.', '-'));
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const data = chartData[ticker];
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Prijs',
+                            data: data.prices,
+                            borderColor: '#58a6ff',
+                            borderWidth: 2,
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'MA50',
+                            data: data.ma50,
+                            borderColor: 'rgba(210, 153, 34, 0.4)',
+                            borderWidth: 1.5,
+                            borderDash: [5, 5],
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    interaction: { intersect: false, mode: 'index' },
+                    scales: { 
+                        x: { display: false },
+                        y: { 
+                            ticks: { color: '#8b949e', font: { size: 10 } },
+                            grid: { color: '#30363d' }
+                        }
+                    }
+                }
+            });
+        });
+    }
+    window.onload = initCharts;
+    </script>
+</body>
+</html>
